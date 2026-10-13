@@ -1,0 +1,289 @@
+// This is your Prisma schema file for the ServeLink platform.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =============================================================
+// CORE ENTITIES
+// =============================================================
+
+// -------------------------------------------------------------
+// 1. User Model
+// -------------------------------------------------------------
+model User {
+  userId    Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String
+  role      String
+  createdAt DateTime @default(now())
+  status    String
+
+  // 1:1 relation with VolunteerProfile
+  volunteerProfile    VolunteerProfile?
+
+  // Reverse relations
+  reports             Report[]
+  ngoMemberships      NgoMembership[]
+  projectCoordinators ProjectCoordinator[]
+}
+
+// -------------------------------------------------------------
+// 2. Ngo Model
+// -------------------------------------------------------------
+model Ngo {
+  ngoId              Int      @id @default(autoincrement())
+  name               String
+  email              String   @unique
+  phone              String
+  address            String
+  description        String
+  website            String?
+  registrationNumber String   @unique
+  createdAt          DateTime @default(now())
+  status             String
+
+  // Reverse relations
+  projects       Project[]
+  resources      Resource[]
+  ngoMemberships NgoMembership[]
+}
+
+// -------------------------------------------------------------
+// 3. VolunteerProfile Model (1:1 with User)
+// -------------------------------------------------------------
+model VolunteerProfile {
+  profileId    Int      @id @default(autoincrement())
+  userId       Int      @unique
+  skills       String
+  availability String
+  location     String
+  experience   String?
+  joinDate     DateTime @default(now())
+  status       String
+
+  // Foreign key relation to User (1:1)
+  user User @relation(fields: [userId], references: [userId])
+
+  // Reverse relations
+  attendances     Attendance[]
+  taskAssignments TaskAssignment[]
+  applications    VolunteerApplication[]
+}
+
+// -------------------------------------------------------------
+// 4. Project Model
+// -------------------------------------------------------------
+model Project {
+  projectId          Int      @id @default(autoincrement())
+  ngoId              Int
+  title              String
+  description        String
+  startDate          DateTime
+  endDate            DateTime
+  location           String
+  requiredVolunteers Int
+  status             String
+
+  // Foreign key relation to Ngo
+  ngo Ngo @relation(fields: [ngoId], references: [ngoId])
+
+  // Reverse relations
+  tasks               Task[]
+  reports             Report[]
+  projectCoordinators ProjectCoordinator[]
+  projectResources    ProjectResource[]
+  opportunities       Opportunity[]
+}
+
+// -------------------------------------------------------------
+// 5. Task Model
+// -------------------------------------------------------------
+model Task {
+  taskId      Int      @id @default(autoincrement())
+  projectId   Int
+  title       String
+  description String
+  dueDate     DateTime
+  status      String
+  priority    String
+  createdAt   DateTime @default(now())
+
+  // Foreign key relation to Project
+  project Project @relation(fields: [projectId], references: [projectId])
+
+  // Reverse relations
+  attendances     Attendance[]
+  taskAssignments TaskAssignment[]
+}
+
+// -------------------------------------------------------------
+// 6. Resource Model
+// -------------------------------------------------------------
+model Resource {
+  resourceId         Int      @id @default(autoincrement())
+  ngoId              Int
+  name               String
+  type               String
+  quantity           Int
+  description        String?
+  location           String?
+  availabilityStatus String
+  addedDate          DateTime @default(now())
+
+  // Foreign key relation to Ngo
+  ngo Ngo @relation(fields: [ngoId], references: [ngoId])
+
+  // Reverse relations
+  projectResources ProjectResource[]
+}
+
+// -------------------------------------------------------------
+// 7. Attendance Model
+// -------------------------------------------------------------
+model Attendance {
+  attendanceId Int       @id @default(autoincrement())
+  profileId    Int
+  taskId       Int
+  date         DateTime
+  status       String
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  remarks      String?
+
+  // Foreign key relations
+  volunteerProfile VolunteerProfile @relation(fields: [profileId], references: [profileId])
+  task             Task             @relation(fields: [taskId], references: [taskId])
+}
+
+// -------------------------------------------------------------
+// 8. Report Model
+// -------------------------------------------------------------
+model Report {
+  reportId    Int      @id @default(autoincrement())
+  projectId   Int
+  generatedBy Int
+  reportType  String
+  title       String
+  description String
+  reportDate  DateTime @default(now())
+  filePath    String?
+  remarks     String?
+
+  // Foreign key relations
+  project Project @relation(fields: [projectId], references: [projectId])
+  user    User    @relation(fields: [generatedBy], references: [userId])
+}
+
+// =============================================================
+// ASSOCIATIVE / JUNCTION TABLES (MANY-TO-MANY)
+// =============================================================
+
+// -------------------------------------------------------------
+// 9. NgoMembership Model (User <-> Ngo)
+// -------------------------------------------------------------
+model NgoMembership {
+  membershipId Int      @id @default(autoincrement())
+  userId       Int
+  ngoId        Int
+  role         String
+  joinedDate   DateTime @default(now())
+  status       String
+
+  // Foreign key relations
+  user User @relation(fields: [userId], references: [userId])
+  ngo  Ngo  @relation(fields: [ngoId], references: [ngoId])
+}
+
+// -------------------------------------------------------------
+// 10. ProjectCoordinator Model (User <-> Project)
+// -------------------------------------------------------------
+model ProjectCoordinator {
+  assignmentId     Int      @id @default(autoincrement())
+  userId           Int
+  projectId        Int
+  permissionsLevel String
+  assignedDate     DateTime @default(now())
+  status           String
+
+  // Foreign key relations
+  user    User    @relation(fields: [userId], references: [userId])
+  project Project @relation(fields: [projectId], references: [projectId])
+}
+
+// -------------------------------------------------------------
+// 11. TaskAssignment Model (VolunteerProfile <-> Task)
+// -------------------------------------------------------------
+model TaskAssignment {
+  assignmentId   Int       @id @default(autoincrement())
+  profileId      Int
+  taskId         Int
+  assignedDate   DateTime  @default(now())
+  status         String
+  hoursLogged    Float?
+  completionDate DateTime?
+  remarks        String?
+
+  // Foreign key relations
+  volunteerProfile VolunteerProfile @relation(fields: [profileId], references: [profileId])
+  task             Task             @relation(fields: [taskId], references: [taskId])
+}
+
+// -------------------------------------------------------------
+// 12. ProjectResource Model (Project <-> Resource)
+// -------------------------------------------------------------
+model ProjectResource {
+  allocationId      Int       @id @default(autoincrement())
+  projectId         Int
+  resourceId        Int
+  allocatedQuantity Int
+  allocationDate    DateTime  @default(now())
+  returnDate        DateTime?
+  status            String
+
+  // Foreign key relations
+  project  Project  @relation(fields: [projectId], references: [projectId])
+  resource Resource @relation(fields: [resourceId], references: [resourceId])
+}
+
+// -------------------------------------------------------------
+// 13. Opportunity Model (Project Offers Opportunity)
+// -------------------------------------------------------------
+model Opportunity {
+  opportunityId    Int                    @id @default(autoincrement())
+  projectId        Int
+  title            String
+  requiredSkills   String
+  volunteersNeeded Int
+  createdAt        DateTime               @default(now())
+
+  // Foreign key relation to Project
+  project          Project                @relation(fields: [projectId], references: [projectId])
+
+  // Reverse relations
+  applications     VolunteerApplication[]
+}
+
+// -------------------------------------------------------------
+// 14. VolunteerApplication Model (Volunteer Profile Applies Through / Opportunity Receives)
+// -------------------------------------------------------------
+model VolunteerApplication {
+  applicationId Int      @id @default(autoincrement())
+  profileId     Int
+  opportunityId Int
+  status        String   @default("PENDING")
+  appliedAt     DateTime @default(now())
+
+  // Foreign key relations
+  volunteerProfile VolunteerProfile @relation(fields: [profileId], references: [profileId])
+  opportunity      Opportunity      @relation(fields: [opportunityId], references: [opportunityId])
+}

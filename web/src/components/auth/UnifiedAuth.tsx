@@ -253,10 +253,10 @@ export function UnifiedAuth({ initialTab = 'SIGN_IN' }: UnifiedAuthProps) {
             <Building2 className="h-8 w-8" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">
-            ServeLink Portal
+            ServeLink
           </h1>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
-            Intelligent Volunteer Coordination & NGO Management Platform
+            A Collaborative Platform For Volunteers, NGOs and Social Initiatives
           </p>
         </div>
 
